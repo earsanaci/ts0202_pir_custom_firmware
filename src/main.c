@@ -24,22 +24,15 @@ static void enter_low_power(void)
 	drv_pm_sleep_mode_e sleep_mode = PM_SLEEP_MODE_DEEPSLEEP;
 
 	if(next_task) {
-		/* Override the next event if it is the default poll rate task.
-		 * It means that the device is idle and we can sleep for longer. */
-		if (next_task->period >= DEFAULT_POLL_RATE_MS) {
-			next_task->timeout = 0;
-
-			/* Don't deep sleep while processing occupancy. */
-			if(get_occupancy_attributes()->occupancy) {
-				sleep_mode = PM_SLEEP_MODE_DEEP_WITH_RETENTION;
-				wake_src |= PM_WAKEUP_SRC_TIMER;
-			}
-		} else {
-			/* Normal task. */
-			sleep_mode = PM_SLEEP_MODE_DEEP_WITH_RETENTION;
-			sleep_time = next_task->timeout;
-			wake_src |= PM_WAKEUP_SRC_TIMER;
-		}
+		/* Always sleep with retention and wake up for the nearest timer.
+		 * When idle, the nearest timer is the long poll (DEFAULT_POLL_RATE_MS),
+		 * so the device sends a data poll to its parent at least once per
+		 * hour. This keeps it well inside the 256 min end device timeout it
+		 * requests; previously an idle device only woke up on PIR/button and
+		 * could be aged out of the parent's child table after ~4 hours. */
+		sleep_mode = PM_SLEEP_MODE_DEEP_WITH_RETENTION;
+		sleep_time = next_task->timeout;
+		wake_src |= PM_WAKEUP_SRC_TIMER;
 	}
 
 	/* Don't deep sleep when haven't joined the network. */
