@@ -18,7 +18,7 @@
 #include "board.h"
 #include "button.h"
 
-#define START_PAIR_MODE_DURATION	(u32)(3000 * 1000)
+#define START_PAIR_MODE_DURATION	(u32)(5000 * 1000)
 #define BUTTON_PRESS_POLL_PERIOD	(u32)(500)
 #define SLEEP_AFTER_PAIR_DURATION	(u32)(5000)
 

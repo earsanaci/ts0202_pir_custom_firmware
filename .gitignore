@@ -1,5 +1,5 @@
-SDK/
-build/
-toolchain/
+/SDK
+/build
+/toolchain
 .cache/
 compile_commands.json

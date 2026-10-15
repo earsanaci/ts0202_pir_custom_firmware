@@ -58,6 +58,7 @@ static void enter_low_power(void)
 void main_task(void)
 {
 	check_button_status();
+	bdb_rejoin_on_wakeup();
 
 	if(bdb_isIdle() && zb_isDeviceJoinedNwk()) {
 		battery_report();

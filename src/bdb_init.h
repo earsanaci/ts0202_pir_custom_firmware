@@ -11,5 +11,6 @@
 #include <zb_api.h>
 
 void bdb_callbacks_init(af_simple_descriptor_t *device_descriptor);
+void bdb_rejoin_on_wakeup(void);
 
 #endif

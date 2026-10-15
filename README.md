@@ -2,6 +2,11 @@
 
 ![ts0202](https://github.com/xaviergr/ts0202_pir_custom_firmware/assets/1671631/e6ab9248-b88a-4981-8ef2-86a3111c9bd8)
 
+> **Fork note:** this is a fork of
+> [xaviergr/ts0202_pir_custom_firmware](https://github.com/xaviergr/ts0202_pir_custom_firmware)
+> focused on network reliability. See [Changes in this fork](#changes-in-this-fork)
+> and [Updating an already flashed device](#updating-an-already-flashed-device).
+
 A minimal ZigBee firmware for TLSR825x based PIR motion sensor devices.
 The implementation is based on the ZigBee SDK examples provided by Telink, but
 vastly simplified and cleaned up for maintainability and ease of development.
@@ -14,7 +19,7 @@ state is cleared after a fixed 60 second delay from the moment the last movement
 is detected by the PIR sensor.
 
 This alternative firmware is pretty basic and supports the bare minimum:
- - Pairing (when first powering up or by holding the button for 3 seconds)
+ - Pairing (when first powering up or by holding the button for 5 seconds)
  - Reporting of remaining battery percentage
  - Customizable occupied to unoccupied delay
 
@@ -27,6 +32,37 @@ Features that are currently missing:
 The idle power consumption is minimized by utilizing the deep sleep mode of the
 microcontroller and was measured to be around 13uA (vs 15.5uA for the original
 firmware) for all tested devices.
+(Upstream measurement. This fork sleeps in retention mode and wakes once per hour,
+so idle current is expected to be slightly higher; it has not been re-measured.)
+
+## Changes in this fork
+
+**Device dropping off the network after ~4 hours of no motion (fixed)**
+The device asks its parent for a 256 minute end device timeout, but when idle it
+went to full deep sleep and only woke up on PIR/button. After ~4 hours without
+motion the parent aged it out of its child table and the sensor became
+unavailable. Now it always sleeps with retention and wakes up for the nearest
+timer, so it sends a data poll to its parent at least once per hour.
+(`src/main.c`, `src/app_cfg.h`)
+
+**Battery re-measured every 24 hours**
+Since the device no longer reboots on every wake up, the battery level is
+re-measured and reported (if changed) every 24 hours. (`src/battery.c`)
+
+**Rejoin fixes** (`src/bdb_init.c`, `src/main.c`)
+- Bug: every `REJOIN_FAILURE` posted a *new* repeating rejoin timer without
+  cancelling the old one (`ev_timer_taskPost` always allocates a new timer).
+  During a long coordinator outage the timers piled up, draining the battery
+  and eventually exhausting the timer pool. Now only one timer exists.
+- Exponential backoff: retry after 3, 6, 12, then every 15 minutes. It never
+  gives up; the backoff resets after a successful rejoin.
+- While waiting to rejoin, any wake up (motion, button, timer) triggers an
+  immediate attempt, rate limited to once per minute. If someone is in the room
+  when the coordinator comes back, the sensor reconnects within about a minute;
+  otherwise within 15 minutes.
+
+**Factory reset needs a 5 second button hold** (was 3 seconds) to avoid
+accidental resets. (`src/button.c`)
 
 ## Supported devices
 
@@ -110,3 +146,52 @@ To flash the binary run the following commands:
 Remember to always erase the entire flash (first command) before flashing the
 binary. Make sure to adjust the 'COM4' port in the above example to whatever
 serial port under Windows (COMx) or Linux (/dev/ttyUSBx) you are using.
+
+## Updating an already flashed device
+
+When the device already runs this firmware (upstream or this fork), you can
+update it **without losing the ZigBee pairing and the configured
+occupied-to-unoccupied delay**. Both are stored in the NV area at the top of
+the flash, far above the ~110KB firmware image, and `wf` only erases the
+sectors it writes.
+
+**Do not run `ea`** for an update: it wipes the NV area, the delay goes back to
+5 seconds and the device has to be paired again.
+
+Tested with a CH340 USB-UART adapter and the wiring from
+[TlsrComSwireWriter](https://github.com/pvvx/TlsrComSwireWriter)
+(TX → 1.3kΩ → SWS, RX → SWS, GND → GND). Replace `COM21` with your port.
+
+1. **Halt the chip.** Start the command below, then **briefly press the button a
+   few times** within the 40 second window (don't hold it, a 5 second hold
+   factory resets the device):
+   ```
+   python TLSR825xComFlasher.py -p COM21 -t 40000 rf 0 16 test.bin
+   ```
+   Power cycling did not work for us: with the adapter connected the chip
+   stays powered through the TX line and the 1.3kΩ resistor, so it never
+   resets. The button wakes it from deep sleep, which goes through the boot
+   process where the flasher can catch it.
+2. **Wake up the SPI flash.** If `test.bin` reads back as all `00`, the
+   firmware left the flash in deep power-down mode. Copy
+   [`tools/flash_wake_read.py`](tools/flash_wake_read.py) next to
+   `TLSR825xComFlasher.py` and run it. It sends the release-from-power-down
+   command (0xAB) and prints the first 64 bytes, which should no longer be zeros:
+   ```
+   python flash_wake_read.py COM21
+   ```
+3. **Write and verify** (the chip stays halted, so no `-t` is needed):
+   ```
+   python TLSR825xComFlasher.py -p COM21 -b 460800 wf 0 ts0202.bin
+   python TLSR825xComFlasher.py -p COM21 rf 0 <size of ts0202.bin> readback.bin
+   ```
+   Compare `readback.bin` with `ts0202.bin` (e.g. `certutil -hashfile <file> SHA256`
+   on Windows or `sha256sum` on Linux).
+4. **Disconnect all wires** (not only VCC, see step 1), insert the battery
+   and check in Home Assistant that the sensor is still paired and that the
+   delay attribute kept its value.
+
+Notes:
+- Write at 460800 baud. At 921600 we saw bit errors in the written data.
+- Do the activation (`-t`) at the default 921600 baud. At 460800 the CH340
+  failed with `Write timeout` during activation.

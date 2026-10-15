@@ -11,9 +11,12 @@
 #include "led.h"
 
 #define REJOIN_FAIL_RETRY_SLEEP_DURATION (180 * 1000)
+#define REJOIN_FAIL_RETRY_MAX_DURATION	(15 * 60 * 1000)
+#define REJOIN_WAKEUP_MIN_GAP		(60 * 1000)
 
 static ev_timer_event_t *steer_task;
 static ev_timer_event_t *rejoin_task;
+static u32 rejoin_retry_ms = REJOIN_FAIL_RETRY_SLEEP_DURATION;
 static bdb_commissionSetting_t bdb_settings;
 
 s32 do_network_steer(void *arg)
@@ -31,7 +34,29 @@ s32 do_rejoin(void *arg)
 	}
 
 	zb_rejoinReqWithBackOff(zb_apsChannelMaskGet(), g_bdbAttrs.scanDuration);
-	return 0;
+
+	/* Exponential backoff so a long coordinator outage doesn't drain the
+	 * battery. Never gives up: keeps retrying at least every 15 minutes. */
+	rejoin_retry_ms = min(rejoin_retry_ms * 2, REJOIN_FAIL_RETRY_MAX_DURATION);
+	return rejoin_retry_ms;
+}
+
+/* Called on every wake up (PIR, button or timer). If we are waiting to
+ * rejoin, try right away instead of waiting for the backoff, but at most
+ * once per minute so a busy room doesn't drain the battery. */
+void bdb_rejoin_on_wakeup(void)
+{
+	if(rejoin_task == NULL) {
+		return;
+	}
+
+	/* Time since the last attempt, tracked by ev_timer across sleeps. */
+	if(rejoin_task->period - rejoin_task->timeout < REJOIN_WAKEUP_MIN_GAP) {
+		return;
+	}
+
+	ev_timer_taskCancel(&rejoin_task);
+	rejoin_task = ev_timer_taskPost(do_rejoin, NULL, 1);
 }
 
 void bdb_do_init(u8 status, bool joined_network)
@@ -63,6 +88,7 @@ void bdb_commission(u8 status, void *arg)
 	case BDB_COMMISSION_STA_SUCCESS:
 		led_blink_start(5, 300, 300);
 		zb_setPollRate(DEFAULT_POLL_RATE_MS);
+		rejoin_retry_ms = REJOIN_FAIL_RETRY_SLEEP_DURATION;
 
 		if(steer_task) {
 			ev_timer_taskCancel(&steer_task);
@@ -87,9 +113,10 @@ void bdb_commission(u8 status, void *arg)
 		do_rejoin(NULL);
 		break;
 	case BDB_COMMISSION_STA_REJOIN_FAILURE:
-		if(zb_isDeviceFactoryNew() == false) {
-			u32 sleep_ms = REJOIN_FAIL_RETRY_SLEEP_DURATION;
-			rejoin_task = ev_timer_taskPost(do_rejoin, NULL, sleep_ms);
+		/* ev_timer_taskPost always allocates a new timer, so only post
+		 * if none is pending; the running one reschedules itself. */
+		if(zb_isDeviceFactoryNew() == false && rejoin_task == NULL) {
+			rejoin_task = ev_timer_taskPost(do_rejoin, NULL, rejoin_retry_ms);
 		}
 		break;
 	default:
