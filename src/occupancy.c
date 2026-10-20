@@ -5,10 +5,15 @@
  *  Author: xaviergr
  */
 
+#include <zb_api.h>
+#include <zb_common.h>
+
 #include "clusters.h"
 #include "occupancy.h"
 #include "helpers.h"
 #include "board.h"
+
+#define HEARTBEAT_PERIOD_MS	(u32)(3600 * 1000)
 
 static ev_timer_event_t *clear_event;
 
@@ -33,6 +38,19 @@ static int occupancy_cleared_task(void *arg)
 	clear_event = NULL;
 
 	return -1;
+}
+
+/* Home Assistant (ZHA) marks a battery device unavailable after 6 hours
+ * without any message from it. The hourly data poll only reaches the parent
+ * router, never the coordinator, so re-send the current occupancy state every
+ * hour as a heartbeat. HA doesn't log a state change for an unchanged value. */
+static int occupancy_heartbeat_task(void *arg)
+{
+	if(bdb_isIdle() && zb_isDeviceJoinedNwk()) {
+		report_occupancy_state(get_occupancy_attributes()->occupancy);
+	}
+
+	return 0;
 }
 
 void occupancy_report(void)
@@ -92,4 +110,5 @@ void occupancy_init(void)
 {
 	u16 *clear_delay = &get_occupancy_attributes()->clear_delay;
 	flash_read_value(NV_ITEM_APP_OCCU_DELAY, sizeof(*clear_delay), clear_delay);
+	ev_timer_taskPost(occupancy_heartbeat_task, NULL, HEARTBEAT_PERIOD_MS);
 }

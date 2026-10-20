@@ -45,6 +45,18 @@ unavailable. Now it always sleeps with retention and wakes up for the nearest
 timer, so it sends a data poll to its parent at least once per hour.
 (`src/main.c`, `src/app_cfg.h`)
 
+**Device shown as unavailable in Home Assistant after 6 hours of no motion (fixed)**
+ZHA marks a battery powered device unavailable when it hasn't heard from it for
+6 hours (`consider_unavailable_battery`, 21600 s). The hourly data poll above
+only goes to the parent router and never reaches the coordinator, so it doesn't
+count. Now the current occupancy state is reported to the coordinator every
+hour as a heartbeat. The value is unchanged, so no extra on/off entries show up
+in the history. (`src/occupancy.c`)
+
+**Battery percentage reported as uint8**
+`BatteryPercentageRemaining` is a uint8 attribute in the ZCL spec but was sent
+and served as uint16. (`src/clusters.c`, `src/battery.c`)
+
 **Battery re-measured every 24 hours**
 Since the device no longer reboots on every wake up, the battery level is
 re-measured and reported (if changed) every 24 hours. (`src/battery.c`)

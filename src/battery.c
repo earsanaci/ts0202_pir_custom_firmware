@@ -48,7 +48,7 @@ void battery_report(void)
 
 	zcl_send_report(ZCL_CLUSTER_GEN_POWER_CFG,
 			ZCL_ATTRID_BATTERY_PERCENTAGE_REMAINING,
-			ZCL_DATA_TYPE_UINT16, &attr->battery_percentage);
+			ZCL_DATA_TYPE_UINT8, &attr->battery_percentage);
 
 	u16 len = sizeof(attr->battery_percentage);
 	flash_write_value(NV_ITEM_APP_BATTERY_LVL, len, &attr->battery_percentage);
