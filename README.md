@@ -140,6 +140,14 @@ cmake --build build/
 If omitted, BOARD_VARIANT defaults to 1.
 The output binary that can be flashed to the device is: 'build/ts0202.bin'
 
+Prebuilt binaries of this fork are in `binaries/`, built from commit `cc718d2`
+(rebuild them when the sources change):
+
+| Board | File | SHA256 |
+|---|---|---|
+| TZ3000_6ygjfyll | `ts0202_TZ3000_6ygjfyll_heartbeat.bin` | `d6132da6a2e38f689f6da9cdc2d2e0f37ddb384a55fba4d3b849620cc847410c` |
+| TZ3040_bb6xaihh | `ts0202_TZ3040_bb6xaihh_heartbeat.bin` | `05970b9fc42a72e7175442a93e73c0713fb1e2eeff07520a89a9307b62f3bd05` |
+
 ## Flashing
 
 As of now the OTA update feature is not supported so flashing the firmware manually
