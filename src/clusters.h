@@ -15,6 +15,7 @@
 #define ZCL_BASIC_ATTR_DEFAULT_LENGTH	32
 #define ZCL_BASIC_ATTR_HALF_LENGTH	(ZCL_BASIC_ATTR_DEFAULT_LENGTH / 2)
 
+/* No longer used, kept so the ID isn't reused for other data. */
 #define NV_ITEM_APP_BATTERY_LVL		(NV_ITEM_ID_MAX - 1)
 #define NV_ITEM_APP_OCCU_DELAY		(NV_ITEM_ID_MAX - 2)
 

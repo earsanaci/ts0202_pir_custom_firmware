@@ -57,9 +57,11 @@ in the history. (`src/occupancy.c`)
 `BatteryPercentageRemaining` is a uint8 attribute in the ZCL spec but was sent
 and served as uint16. (`src/clusters.c`, `src/battery.c`)
 
-**Battery re-measured every 24 hours**
-Since the device no longer reboots on every wake up, the battery level is
-re-measured and reported (if changed) every 24 hours. (`src/battery.c`)
+**Battery reported every hour**
+The battery level was only reported when it changed by at least 1.5% from the
+last reported value stored in flash. After a reflash, or during days of slow
+discharge, nothing was sent and Home Assistant showed no battery value. Now
+the battery is measured and reported on boot and every hour. (`src/battery.c`)
 
 **Rejoin fixes** (`src/bdb_init.c`, `src/main.c`)
 - Bug: every `REJOIN_FAILURE` posted a *new* repeating rejoin timer without

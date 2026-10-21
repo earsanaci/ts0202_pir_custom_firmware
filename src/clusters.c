@@ -154,8 +154,8 @@ static zclAttrInfo_t power_cluster_config[] = {
 		ACCESS_CONTROL_READ,
 		(u8 *)&power_attributes.battery_voltage
 	},
-	/* uint8 per the ZCL spec. The field is u16 (its size is part of the
-	 * NV item), the low byte is read on this little endian MCU. */
+	/* uint8 per the ZCL spec. The field is u16, the low byte is read
+	 * on this little endian MCU. */
 	{
 		ZCL_ATTRID_BATTERY_PERCENTAGE_REMAINING,
 		ZCL_DATA_TYPE_UINT8,
