@@ -142,13 +142,13 @@ cmake --build build/
 If omitted, BOARD_VARIANT defaults to 1.
 The output binary that can be flashed to the device is: 'build/ts0202.bin'
 
-Prebuilt binaries of this fork are in `binaries/`, built from commit `cc718d2`
+Prebuilt binaries of this fork are in `binaries/`, built from commit `27a1164`
 (rebuild them when the sources change):
 
 | Board | File | SHA256 |
 |---|---|---|
-| TZ3000_6ygjfyll | `ts0202_TZ3000_6ygjfyll_heartbeat.bin` | `d6132da6a2e38f689f6da9cdc2d2e0f37ddb384a55fba4d3b849620cc847410c` |
-| TZ3040_bb6xaihh | `ts0202_TZ3040_bb6xaihh_heartbeat.bin` | `05970b9fc42a72e7175442a93e73c0713fb1e2eeff07520a89a9307b62f3bd05` |
+| TZ3000_6ygjfyll | `ts0202_TZ3000_6ygjfyll_heartbeat.bin` | `f35bd8cbe97e940edcfd569418f8c2adf0d2ee8c1cf6795d9792b0087718e606` |
+| TZ3040_bb6xaihh | `ts0202_TZ3040_bb6xaihh_heartbeat.bin` | `83338a64fd7dc83f6d2fe1ffaa5c51b45a03877ec8a95d5470f90c8b98f1286b` |
 
 ## Flashing
 
